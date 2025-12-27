@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Job Gửi Mail</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 30px;
+      }
+
+      h1 {
+        color: #667eea;
+        margin-bottom: 30px;
+        text-align: center;
+        font-size: 2.5em;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .btn-primary {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-success {
+        background: #10b981;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #059669;
+      }
+
+      .btn-danger {
+        background: #ef4444;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #dc2626;
+      }
+
+      .btn-warning {
+        background: #f59e0b;
+        color: white;
+      }
+
+      .btn-warning:hover {
+        background: #d97706;
+      }
+
+      .btn-small {
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+
+      .jobs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .job-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s;
+      }
+
+      .job-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .job-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .job-title {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .job-status {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .status-active {
+        background: #10b981;
+        color: white;
+      }
+
+      .status-paused {
+        background: #f59e0b;
+        color: white;
+      }
+
+      .job-info {
+        color: #666;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+
+      .job-info strong {
+        color: #333;
+      }
+
+      .job-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 15px;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        overflow-y: auto;
+      }
+
+      .modal.active {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-header {
+        font-size: 1.8em;
+        color: #667eea;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 25px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+      }
+
+      .empty-state-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+      }
+
+      .info-box {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+      }
+
+      .info-box strong {
+        color: #92400e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📧 Quản Lý Job Gửi Mail Tự Động</h1>
+
+      <div class="info-box">
+        <strong>Lưu ý:</strong> Để gửi mail tự động, bạn cần chạy script
+        Node.js. Xem file README.md để biết hướng dẫn chi tiết. Dữ liệu job được
+        lưu trong localStorage.
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="totalJobs">0</div>
+          <div class="stat-label">Tổng Jobs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="activeJobs">0</div>
+          <div class="stat-label">Jobs Đang Chạy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="pausedJobs">0</div>
+          <div class="stat-label">Jobs Đã Tạm Dừng</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-primary" onclick="openAddModal()">
+          ➕ Thêm Job Mới
+        </button>
+        <button class="btn-warning" onclick="exportData()">
+          📥 Xuất Dữ Liệu
+        </button>
+        <button class="btn-success" onclick="importData()">
+          📤 Nhập Dữ Liệu
+        </button>
+      </div>
+
+      <div class="jobs-grid" id="jobsContainer"></div>
+    </div>
+
+    <!-- Modal Thêm/Sửa Job -->
+    <div class="modal" id="jobModal">
+      <div class="modal-content">
+        <h2 class="modal-header" id="modalTitle">Thêm Job Mới</h2>
+        <form id="jobForm">
+          <div class="form-group">
+            <label>Tên Job *</label>
+            <input
+              type="text"
+              id="jobName"
+              required
+              placeholder="VD: Gửi mail khách hàng VIP"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Chrome Profile *</label>
+            <div style="display: flex; gap: 10px">
+              <select id="chromeProfile" required style="flex: 1">
+                <option value="">-- Chọn hoặc nhập profile --</option>
+              </select>
+              <button
+                type="button"
+                class="btn-primary"
+                onclick="loadChromeProfiles()"
+                style="white-space: nowrap"
+              >
+                🔄 Tải Profiles
+              </button>
+            </div>
+            <input
+              type="text"
+              id="chromeProfileCustom"
+              placeholder="Hoặc nhập tên profile tùy chỉnh"
+              style="margin-top: 10px"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Email Gửi *</label>
+            <input
+              type="email"
+              id="emailFrom"
+              required
+              placeholder="example@gmail.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Danh Sách Email Nhận *</label>
+            <textarea
+              id="emailTo"
+              required
+              placeholder="Nhập email, cách nhau bởi dấu phẩy hoặc xuống dòng&#10;VD: abc@gmail.com, xyz@gmail.com"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Tiêu Đề Email *</label>
+            <input
+              type="text"
+              id="emailSubject"
+              required
+              placeholder="VD: Thông báo khuyến mãi"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Nội Dung Email *</label>
+            <textarea
+              id="emailBody"
+              required
+              placeholder="Nhập nội dung email..."
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Lịch Gửi</label>
+            <select id="schedule">
+              <option value="manual">Gửi Thủ Công</option>
+              <option value="daily">Hàng Ngày</option>
+              <option value="weekly">Hàng Tuần</option>
+              <option value="monthly">Hàng Tháng</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Thời Gian Gửi</label>
+            <input type="time" id="scheduleTime" value="09:00" />
+          </div>
+
+          <div class="form-group">
+            <label>Ghi Chú</label>
+            <textarea
+              id="notes"
+              placeholder="Thêm ghi chú về job này..."
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-danger" onclick="closeModal()">
+              Hủy
+            </button>
+            <button type="submit" class="btn-primary">Lưu Job</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      let jobs = [];
+      let editingJobId = null;
+
+      // Load jobs from localStorage
+      function loadJobs() {
+        try {
+          const saved = localStorage.getItem("mailJobs");
+          if (saved) {
+            jobs = JSON.parse(saved);
+          }
+        } catch (e) {
+          console.warn(
+            "LocalStorage không khả dụng. Dữ liệu sẽ không được lưu."
+          );
+        }
+        renderJobs();
+        updateStats();
+      }
+
+      // Save jobs to localStorage
+      function saveJobs() {
+        try {
+          localStorage.setItem("mailJobs", JSON.stringify(jobs));
+        } catch (e) {
+          console.warn("Không thể lưu dữ liệu vào localStorage.");
+        }
+      }
+
+      // Render jobs
+      function renderJobs() {
+        const container = document.getElementById("jobsContainer");
+
+        if (jobs.length === 0) {
+          container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>Chưa có job nào</h3>
+                        <p>Nhấn "Thêm Job Mới" để bắt đầu</p>
+                    </div>
+                `;
+          return;
+        }
+
+        container.innerHTML = jobs
+          .map(
+            (job) => `
+                <div class="job-card">
+                    <div class="job-header">
+                        <div class="job-title">${job.name}</div>
+                        <div class="job-status ${
+                          job.status === "active"
+                            ? "status-active"
+                            : "status-paused"
+                        }">
+                            ${
+                              job.status === "active"
+                                ? "✓ Hoạt động"
+                                : "⏸ Tạm dừng"
+                            }
+                        </div>
+                    </div>
+                    <div class="job-info"><strong>Profile:</strong> ${
+                      job.chromeProfile
+                    }</div>
+                    <div class="job-info"><strong>Email:</strong> ${
+                      job.emailFrom
+                    }</div>
+                    <div class="job-info"><strong>Số người nhận:</strong> ${
+                      job.emailTo.length
+                    }</div>
+                    <div class="job-info"><strong>Lịch:</strong> ${getScheduleText(
+                      job.schedule
+                    )}</div>
+                    <div class="job-info"><strong>Thời gian:</strong> ${
+                      job.scheduleTime
+                    }</div>
+                    ${
+                      job.lastSent
+                        ? `<div class="job-info"><strong>Gửi lần cuối:</strong> ${new Date(
+                            job.lastSent
+                          ).toLocaleString("vi-VN")}</div>`
+                        : ""
+                    }
+                    
+                    <div class="job-actions">
+                        <button class="btn-success btn-small" onclick="runJob('${
+                          job.id
+                        }')">▶ Chạy</button>
+                        <button class="btn-warning btn-small" onclick="toggleJobStatus('${
+                          job.id
+                        }')">
+                            ${
+                              job.status === "active" ? "⏸ Dừng" : "▶ Kích hoạt"
+                            }
+                        </button>
+                        <button class="btn-primary btn-small" onclick="editJob('${
+                          job.id
+                        }')">✏ Sửa</button>
+                        <button class="btn-danger btn-small" onclick="deleteJob('${
+                          job.id
+                        }')">🗑 Xóa</button>
+                    </div>
+                </div>
+            `
+          )
+          .join("");
+      }
+
+      function getScheduleText(schedule) {
+        const texts = {
+          manual: "Thủ công",
+          daily: "Hàng ngày",
+          weekly: "Hàng tuần",
+          monthly: "Hàng tháng",
+        };
+        return texts[schedule] || schedule;
+      }
+
+      // Update statistics
+      function updateStats() {
+        document.getElementById("totalJobs").textContent = jobs.length;
+        document.getElementById("activeJobs").textContent = jobs.filter(
+          (j) => j.status === "active"
+        ).length;
+        document.getElementById("pausedJobs").textContent = jobs.filter(
+          (j) => j.status === "paused"
+        ).length;
+      }
+
+      // Open add modal
+      function openAddModal() {
+        editingJobId = null;
+        document.getElementById("modalTitle").textContent = "Thêm Job Mới";
+        document.getElementById("jobForm").reset();
+        document.getElementById("jobModal").classList.add("active");
+      }
+
+      // Close modal
+      function closeModal() {
+        document.getElementById("jobModal").classList.remove("active");
+        editingJobId = null;
+      }
+
+      // Edit job
+      function editJob(id) {
+        const job = jobs.find((j) => j.id === id);
+        if (!job) return;
+
+        editingJobId = id;
+        document.getElementById("modalTitle").textContent = "Chỉnh Sửa Job";
+        document.getElementById("jobName").value = job.name;
+        document.getElementById("chromeProfile").value = job.chromeProfile;
+        document.getElementById("emailFrom").value = job.emailFrom;
+        document.getElementById("emailTo").value = job.emailTo.join(", ");
+        document.getElementById("emailSubject").value = job.emailSubject;
+        document.getElementById("emailBody").value = job.emailBody;
+        document.getElementById("schedule").value = job.schedule;
+        document.getElementById("scheduleTime").value = job.scheduleTime;
+        document.getElementById("notes").value = job.notes || "";
+
+        // Set profile
+        const profileSelect = document.getElementById("chromeProfile");
+        const profileCustom = document.getElementById("chromeProfileCustom");
+        profileSelect.value = job.chromeProfile;
+        profileCustom.value = "";
+
+        document.getElementById("jobModal").classList.add("active");
+      }
+
+      // Delete job
+      function deleteJob(id) {
+        if (confirm("Bạn có chắc muốn xóa job này?")) {
+          jobs = jobs.filter((j) => j.id !== id);
+          saveJobs();
+          renderJobs();
+          updateStats();
+        }
+      }
+
+      // Toggle job status
+      function toggleJobStatus(id) {
+        const job = jobs.find((j) => j.id === id);
+        if (job) {
+          job.status = job.status === "active" ? "paused" : "active";
+          saveJobs();
+          renderJobs();
+          updateStats();
+        }
+      }
+
+      // Load Chrome profiles
+      async function loadChromeProfiles() {
+        try {
+          const response = await fetch("http://localhost:3000/api/profiles");
+          const profiles = await response.json();
+          const select = document.getElementById("chromeProfile");
+          select.innerHTML = '<option value="">-- Chọn profile --</option>';
+
+          // Lưu profiles vào data attribute để sử dụng sau
+          select.dataset.profiles = JSON.stringify(profiles);
+
+          profiles.forEach((profile) => {
+            const option = document.createElement("option");
+            option.value = profile.directory; // Lưu directory name (Default, Profile 1, ...)
+            option.textContent = `${profile.name} (${
+              profile.email || "N/A"
+            }) - [${profile.directory}]`;
+            select.appendChild(option);
+          });
+          alert(`Đã tải ${profiles.length} Chrome profiles!`);
+        } catch (error) {
+          console.error("Lỗi khi tải profiles:", error);
+          alert(
+            "Không thể tải Chrome profiles. Đảm bảo server Node.js đang chạy (npm start)"
+          );
+        }
+      }
+
+      // Run job
+      async function runJob(id) {
+        const job = jobs.find((j) => j.id === id);
+        if (!job) return;
+
+        if (
+          !confirm(
+            `Bạn có chắc muốn chạy job "${job.name}"?\n\nSẽ gửi ${job.emailTo.length} email từ ${job.emailFrom}`
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch("http://localhost:3000/api/run-job", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(job),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            job.lastSent = new Date().toISOString();
+            job.lastResult = result;
+            saveJobs();
+            renderJobs();
+            alert(
+              `✅ Job "${job.name}" đã được thực thi thành công!\n\nĐã gửi: ${
+                result.sent || 0
+              }/${job.emailTo.length} email`
+            );
+          } else {
+            alert(`❌ Lỗi: ${result.error || "Không thể thực thi job"}`);
+          }
+        } catch (error) {
+          console.error("Lỗi khi chạy job:", error);
+          alert(
+            "❌ Không thể kết nối đến server. Đảm bảo server Node.js đang chạy (npm start)"
+          );
+        }
+      }
+
+      // Handle form submit
+      document
+        .getElementById("jobForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const emailToText = document.getElementById("emailTo").value;
+          const emailToArray = emailToText
+            .split(/[,\n]/)
+            .map((email) => email.trim())
+            .filter((email) => email.length > 0);
+
+          const jobData = {
+            name: document.getElementById("jobName").value,
+            chromeProfile: document.getElementById("chromeProfile").value,
+            emailFrom: document.getElementById("emailFrom").value,
+            emailTo: emailToArray,
+            emailSubject: document.getElementById("emailSubject").value,
+            emailBody: document.getElementById("emailBody").value,
+            schedule: document.getElementById("schedule").value,
+            scheduleTime: document.getElementById("scheduleTime").value,
+            notes: document.getElementById("notes").value,
+            status: "active",
+          };
+
+          // Use custom profile if provided, otherwise use selected
+          const profileSelect = document.getElementById("chromeProfile");
+          const profileCustom = document.getElementById("chromeProfileCustom");
+          if (profileCustom.value.trim()) {
+            jobData.chromeProfile = profileCustom.value.trim();
+          } else {
+            jobData.chromeProfile = profileSelect.value;
+          }
+
+          if (editingJobId) {
+            // Update existing job
+            const index = jobs.findIndex((j) => j.id === editingJobId);
+            if (index !== -1) {
+              jobs[index] = { ...jobs[index], ...jobData };
+            }
+          } else {
+            // Add new job
+            jobData.id = "job_" + Date.now();
+            jobData.createdAt = new Date().toISOString();
+            jobs.push(jobData);
+          }
+
+          saveJobs();
+          renderJobs();
+          updateStats();
+          closeModal();
+        });
+
+      // Export data
+      function exportData() {
+        const dataStr = JSON.stringify(jobs, null, 2);
+        const dataBlob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download =
+          "mail_jobs_" + new Date().toISOString().split("T")[0] + ".json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // Import data
+      function importData() {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "application/json";
+        input.onchange = function (e) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            try {
+              const importedJobs = JSON.parse(event.target.result);
+              if (
+                confirm(
+                  `Tìm thấy ${importedJobs.length} jobs. Bạn muốn:\n- OK: Thay thế tất cả\n- Cancel: Hủy`
+                )
+              ) {
+                jobs = importedJobs;
+                saveJobs();
+                renderJobs();
+                updateStats();
+                alert("Nhập dữ liệu thành công!");
+              }
+            } catch (error) {
+              alert("Lỗi: File không đúng định dạng!");
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      }
+
+      // Close modal when clicking outside
+      document
+        .getElementById("jobModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            closeModal();
+          }
+        });
+
+      // Initialize
+      loadJobs();
+    </script>
+  </body>
+</html>

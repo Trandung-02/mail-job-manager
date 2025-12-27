@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Ứng dụng quản lý job gửi mail tự động với Chrome profiles" />
+    <meta name="keywords" content="email, automation, chrome, gmail, job manager" />
+    <meta name="author" content="Mail Job Manager" />
+    <title>Quản Lý Job Gửi Mail Tự Động</title>
+    <link rel="stylesheet" href="assets/css/main.css" />
+  </head>
+  <body>
+    <main class="app-container" role="main">
+      <header>
+        <h1 class="app-title">📧 Quản Lý Job Gửi Mail Tự Động</h1>
+        <p class="app-subtitle">Quản lý và tự động hóa việc gửi email với Chrome profiles</p>
+      </header>
+
+      <section class="info-box" role="alert" aria-live="polite">
+        <p class="info-box__text">
+          <strong>Lưu ý:</strong> Để gửi mail tự động, bạn cần chạy script Node.js. 
+          Xem file README.md để biết hướng dẫn chi tiết. Dữ liệu job được lưu trong PostgreSQL database.
+        </p>
+      </section>
+
+      <section class="stats" aria-label="Thống kê jobs">
+        <article class="stat-card">
+          <div class="stat-card__value" id="totalJobs" aria-live="polite">0</div>
+          <div class="stat-card__label">Tổng Jobs</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__value" id="activeJobs" aria-live="polite">0</div>
+          <div class="stat-card__label">Jobs Đang Chạy</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__value" id="pausedJobs" aria-live="polite">0</div>
+          <div class="stat-card__label">Jobs Đã Tạm Dừng</div>
+        </article>
+      </section>
+
+      <section class="controls" aria-label="Điều khiển">
+        <button 
+          class="btn btn--primary" 
+          onclick="openAddModal()"
+          aria-label="Thêm job mới"
+        >
+          ➕ Thêm Job Mới
+        </button>
+        <button 
+          class="btn btn--warning" 
+          onclick="exportData()"
+          aria-label="Xuất dữ liệu"
+        >
+          📥 Xuất Dữ Liệu
+        </button>
+        <button 
+          class="btn btn--success" 
+          onclick="importData()"
+          aria-label="Nhập dữ liệu"
+        >
+          📤 Nhập Dữ Liệu
+        </button>
+      </section>
+
+      <section class="jobs-grid" id="jobsContainer" aria-label="Danh sách jobs" role="region">
+        <!-- Jobs will be rendered here by JavaScript -->
+      </section>
+    </main>
+
+    <!-- Modal Thêm/Sửa Job -->
+    <div 
+      class="modal" 
+      id="jobModal" 
+      role="dialog" 
+      aria-labelledby="modalTitle"
+      aria-modal="true"
+      aria-hidden="true"
+    >
+      <div class="modal__content">
+        <button 
+          class="modal__close" 
+          id="modalClose"
+          onclick="closeModal()"
+          aria-label="Đóng modal"
+        >
+          ×
+        </button>
+        <h2 class="modal__header" id="modalTitle">Thêm Job Mới</h2>
+        <form id="jobForm" novalidate>
+          <div class="form-group">
+            <label for="jobName" class="form-group__label">
+              Tên Job <span aria-label="bắt buộc">*</span>
+            </label>
+            <input
+              type="text"
+              id="jobName"
+              name="jobName"
+              class="form-group__input"
+              required
+              placeholder="VD: Gửi mail khách hàng VIP"
+              aria-required="true"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="chromeProfile" class="form-group__label">
+              Chrome Profile <span aria-label="bắt buộc">*</span>
+            </label>
+            <div class="form-group__help">
+              <div class="form-group__select-wrapper">
+                <select 
+                  id="chromeProfile" 
+                  name="chromeProfile"
+                  class="form-group__select"
+                  required
+                  aria-required="true"
+                >
+                  <option value="">-- Chọn hoặc nhập profile --</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                class="btn btn--primary"
+                onclick="loadChromeProfiles()"
+                style="white-space: nowrap"
+                aria-label="Tải danh sách Chrome profiles"
+              >
+                🔄 Tải Profiles
+              </button>
+            </div>
+            <input
+              type="text"
+              id="chromeProfileCustom"
+              name="chromeProfileCustom"
+              class="form-group__input"
+              placeholder="Hoặc nhập tên profile tùy chỉnh"
+              style="margin-top: 10px"
+              aria-label="Nhập tên profile tùy chỉnh"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="emailFrom" class="form-group__label">
+              Email Gửi <span aria-label="bắt buộc">*</span>
+              <small style="display: block; font-weight: normal; color: #6b7280; margin-top: 4px; font-size: 0.875rem;">
+                (Sẽ tự động lấy từ Chrome Profile đã chọn)
+              </small>
+            </label>
+            <input
+              type="email"
+              id="emailFrom"
+              name="emailFrom"
+              class="form-group__input"
+              required
+              placeholder="Chọn Chrome Profile để tự động điền email"
+              aria-required="true"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="appPassword" class="form-group__label">
+              Gmail App Password <span aria-label="bắt buộc">*</span>
+              <small style="display: block; font-weight: normal; color: #6b7280; margin-top: 4px; font-size: 0.875rem;">
+                <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color: #667eea;">
+                  Tạo App Password tại đây
+                </a>
+                (Cần bật 2-Step Verification trước)
+              </small>
+              <small id="appPasswordHint" style="display: none; font-weight: normal; color: #10b981; margin-top: 4px; font-size: 0.875rem;">
+                💡 Để trống để giữ App Password hiện tại
+              </small>
+            </label>
+            <input
+              type="password"
+              id="appPassword"
+              name="appPassword"
+              class="form-group__input"
+              required
+              placeholder="Nhập Gmail App Password (16 ký tự, bắt buộc khi tạo mới)"
+              aria-required="true"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="emailTo" class="form-group__label">
+              Danh Sách Email Nhận <span aria-label="bắt buộc">*</span>
+            </label>
+            <textarea
+              id="emailTo"
+              name="emailTo"
+              class="form-group__textarea"
+              required
+              placeholder="Nhập email, cách nhau bởi dấu phẩy hoặc xuống dòng&#10;VD: abc@gmail.com, xyz@gmail.com"
+              aria-required="true"
+              rows="4"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="emailSubject" class="form-group__label">
+              Tiêu Đề Email <span aria-label="bắt buộc">*</span>
+            </label>
+            <input
+              type="text"
+              id="emailSubject"
+              name="emailSubject"
+              class="form-group__input"
+              required
+              placeholder="VD: Thông báo khuyến mãi"
+              aria-required="true"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="emailBody" class="form-group__label">
+              Nội Dung Email <span aria-label="bắt buộc">*</span>
+            </label>
+            <textarea
+              id="emailBody"
+              name="emailBody"
+              class="form-group__textarea"
+              required
+              placeholder="Nhập nội dung email..."
+              aria-required="true"
+              rows="6"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="schedule" class="form-group__label">Lịch Gửi</label>
+            <select id="schedule" name="schedule" class="form-group__select">
+              <option value="manual">Gửi Thủ Công</option>
+              <option value="daily">Hàng Ngày</option>
+              <option value="weekly">Hàng Tuần</option>
+              <option value="monthly">Hàng Tháng</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="scheduleTime" class="form-group__label">Thời Gian Gửi</label>
+            <input 
+              type="time" 
+              id="scheduleTime" 
+              name="scheduleTime"
+              class="form-group__input"
+              value="09:00"
+              aria-label="Thời gian gửi email"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="notes" class="form-group__label">Ghi Chú</label>
+            <textarea
+              id="notes"
+              name="notes"
+              class="form-group__textarea"
+              placeholder="Thêm ghi chú về job này..."
+              rows="3"
+              aria-label="Ghi chú về job"
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button 
+              type="button" 
+              class="btn btn--danger" 
+              onclick="closeModal()"
+              aria-label="Hủy và đóng form"
+            >
+              Hủy
+            </button>
+            <button 
+              type="submit" 
+              class="btn btn--primary"
+              aria-label="Lưu job"
+            >
+              Lưu Job
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Xem Log -->
+    <div 
+      class="modal" 
+      id="logModal" 
+      role="dialog" 
+      aria-labelledby="logModalTitle"
+      aria-modal="true"
+      aria-hidden="true"
+    >
+      <div class="modal__content modal__content--large">
+        <button 
+          class="modal__close" 
+          id="logModalClose"
+          onclick="LogModalManager.close()"
+          aria-label="Đóng modal"
+        >
+          ×
+        </button>
+        <h2 class="modal__header" id="logModalTitle">Log Lần Chạy Gần Nhất</h2>
+        <div id="logModalContent">
+          <div class="log-loading">Đang tải...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+  </body>
+</html>
+

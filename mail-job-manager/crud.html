@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản Lý Jobs - CRUD API</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 30px;
+      }
+
+      h1 {
+        color: #667eea;
+        margin-bottom: 30px;
+        text-align: center;
+        font-size: 2.5em;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .btn-primary {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-success {
+        background: #10b981;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #059669;
+      }
+
+      .btn-danger {
+        background: #ef4444;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #dc2626;
+      }
+
+      .btn-warning {
+        background: #f59e0b;
+        color: white;
+      }
+
+      .btn-warning:hover {
+        background: #d97706;
+      }
+
+      .btn-small {
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+
+      .jobs-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .jobs-table th {
+        background: #667eea;
+        color: white;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+      }
+
+      .jobs-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .jobs-table tr:hover {
+        background: #f9fafb;
+      }
+
+      .jobs-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+      }
+
+      .status-active {
+        background: #10b981;
+        color: white;
+      }
+
+      .status-paused {
+        background: #f59e0b;
+        color: white;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        overflow-y: auto;
+      }
+
+      .modal.active {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-header {
+        font-size: 1.8em;
+        color: #667eea;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 2em;
+        color: #999;
+        cursor: pointer;
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-close:hover {
+        color: #333;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+      }
+
+      label span {
+        color: #ef4444;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+        font-family: inherit;
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 25px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+      }
+
+      .empty-state-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+      }
+
+      .message {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .message.success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #10b981;
+      }
+
+      .message.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #ef4444;
+      }
+
+      .message.show {
+        display: block;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📧 Quản Lý Jobs - CRUD API</h1>
+
+      <div id="message" class="message"></div>
+
+      <div class="controls">
+        <button class="btn-primary" onclick="openAddModal()">
+          ➕ Thêm Job Mới
+        </button>
+        <button class="btn-success" onclick="loadJobs()">
+          🔄 Tải Lại
+        </button>
+      </div>
+
+      <div id="loading" class="loading" style="display: none;">
+        Đang tải dữ liệu...
+      </div>
+
+      <table class="jobs-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tên Job</th>
+            <th>Email Gửi</th>
+            <th>Số Email Nhận</th>
+            <th>Lịch</th>
+            <th>Trạng Thái</th>
+            <th>Ngày Tạo</th>
+            <th>Thao Tác</th>
+          </tr>
+        </thead>
+        <tbody id="jobsTableBody">
+          <tr>
+            <td colspan="8" class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <h3>Chưa có dữ liệu</h3>
+              <p>Nhấn "Tải Lại" để tải dữ liệu từ database</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modal Thêm/Sửa Job -->
+    <div class="modal" id="jobModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle">Thêm Job Mới</h2>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form id="jobForm">
+          <div class="form-group">
+            <label>Tên Job <span>*</span></label>
+            <input
+              type="text"
+              id="jobName"
+              required
+              placeholder="VD: Gửi mail khách hàng VIP"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Chrome Profile</label>
+            <input
+              type="text"
+              id="chromeProfile"
+              placeholder="VD: Default hoặc Profile 1"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Email Gửi <span>*</span></label>
+            <input
+              type="email"
+              id="emailFrom"
+              required
+              placeholder="example@gmail.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Danh Sách Email Nhận <span>*</span></label>
+            <textarea
+              id="emailTo"
+              required
+              placeholder="Nhập email, cách nhau bởi dấu phẩy hoặc xuống dòng&#10;VD: abc@gmail.com, xyz@gmail.com"
+              rows="4"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Tiêu Đề Email <span>*</span></label>
+            <input
+              type="text"
+              id="emailSubject"
+              required
+              placeholder="VD: Thông báo khuyến mãi"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Nội Dung Email <span>*</span></label>
+            <textarea
+              id="emailBody"
+              required
+              placeholder="Nhập nội dung email..."
+              rows="6"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Lịch Gửi</label>
+            <select id="schedule">
+              <option value="manual">Gửi Thủ Công</option>
+              <option value="daily">Hàng Ngày</option>
+              <option value="weekly">Hàng Tuần</option>
+              <option value="monthly">Hàng Tháng</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Thời Gian Gửi</label>
+            <input type="time" id="scheduleTime" value="09:00" />
+          </div>
+
+          <div class="form-group">
+            <label>Ghi Chú</label>
+            <textarea
+              id="notes"
+              placeholder="Thêm ghi chú về job này..."
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Trạng Thái</label>
+            <select id="status">
+              <option value="active">Hoạt Động</option>
+              <option value="paused">Tạm Dừng</option>
+            </select>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-danger" onclick="closeModal()">
+              Hủy
+            </button>
+            <button type="submit" class="btn-primary">Lưu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE_URL = "http://localhost:3000/api";
+      let editingJobId = null;
+
+      // Hiển thị thông báo
+      function showMessage(message, type = "success") {
+        const messageEl = document.getElementById("message");
+        messageEl.textContent = message;
+        messageEl.className = `message ${type} show`;
+        setTimeout(() => {
+          messageEl.classList.remove("show");
+        }, 5000);
+      }
+
+      // Tải danh sách jobs
+      async function loadJobs() {
+        const loadingEl = document.getElementById("loading");
+        const tableBody = document.getElementById("jobsTableBody");
+        
+        loadingEl.style.display = "block";
+        tableBody.innerHTML = "";
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/jobs`);
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || "Lỗi khi tải dữ liệu");
+          }
+
+          if (result.data.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="8" class="empty-state">
+                  <div class="empty-state-icon">📭</div>
+                  <h3>Chưa có job nào</h3>
+                  <p>Nhấn "Thêm Job Mới" để bắt đầu</p>
+                </td>
+              </tr>
+            `;
+          } else {
+            tableBody.innerHTML = result.data
+              .map(
+                (job) => `
+              <tr>
+                <td>${job.id}</td>
+                <td>${escapeHtml(job.name)}</td>
+                <td>${escapeHtml(job.email_from)}</td>
+                <td>${Array.isArray(job.email_to) ? job.email_to.length : 0}</td>
+                <td>${getScheduleText(job.schedule)}</td>
+                <td>
+                  <span class="status-badge ${
+                    job.status === "active" ? "status-active" : "status-paused"
+                  }">
+                    ${job.status === "active" ? "Hoạt Động" : "Tạm Dừng"}
+                  </span>
+                </td>
+                <td>${new Date(job.created_at).toLocaleString("vi-VN")}</td>
+                <td>
+                  <div class="action-buttons">
+                    <button class="btn-primary btn-small" onclick="editJob(${job.id})">
+                      ✏ Sửa
+                    </button>
+                    <button class="btn-danger btn-small" onclick="deleteJob(${job.id})">
+                      🗑 Xóa
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `
+              )
+              .join("");
+          }
+
+          showMessage(`Đã tải ${result.data.length} job thành công`);
+        } catch (error) {
+          console.error("Lỗi khi tải jobs:", error);
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="8" class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <h3>Lỗi khi tải dữ liệu</h3>
+                <p>${error.message}</p>
+              </td>
+            </tr>
+          `;
+          showMessage(`Lỗi: ${error.message}`, "error");
+        } finally {
+          loadingEl.style.display = "none";
+        }
+      }
+
+      // Escape HTML để tránh XSS
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Lấy text cho schedule
+      function getScheduleText(schedule) {
+        const texts = {
+          manual: "Thủ công",
+          daily: "Hàng ngày",
+          weekly: "Hàng tuần",
+          monthly: "Hàng tháng",
+        };
+        return texts[schedule] || schedule;
+      }
+
+      // Mở modal thêm mới
+      function openAddModal() {
+        editingJobId = null;
+        document.getElementById("modalTitle").textContent = "Thêm Job Mới";
+        document.getElementById("jobForm").reset();
+        document.getElementById("scheduleTime").value = "09:00";
+        document.getElementById("status").value = "active";
+        document.getElementById("jobModal").classList.add("active");
+      }
+
+      // Đóng modal
+      function closeModal() {
+        document.getElementById("jobModal").classList.remove("active");
+        editingJobId = null;
+      }
+
+      // Sửa job
+      async function editJob(id) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/jobs/${id}`);
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || "Không tìm thấy job");
+          }
+
+          const job = result.data;
+          editingJobId = id;
+
+          document.getElementById("modalTitle").textContent = "Chỉnh Sửa Job";
+          document.getElementById("jobName").value = job.name || "";
+          document.getElementById("chromeProfile").value = job.chrome_profile || "";
+          document.getElementById("emailFrom").value = job.email_from || "";
+          document.getElementById("emailTo").value = Array.isArray(job.email_to)
+            ? job.email_to.join(", ")
+            : job.email_to || "";
+          document.getElementById("emailSubject").value = job.email_subject || "";
+          document.getElementById("emailBody").value = job.email_body || "";
+          document.getElementById("schedule").value = job.schedule || "manual";
+          document.getElementById("scheduleTime").value = job.schedule_time
+            ? job.schedule_time.substring(0, 5)
+            : "09:00";
+          document.getElementById("notes").value = job.notes || "";
+          document.getElementById("status").value = job.status || "active";
+
+          document.getElementById("jobModal").classList.add("active");
+        } catch (error) {
+          console.error("Lỗi khi tải job:", error);
+          showMessage(`Lỗi: ${error.message}`, "error");
+        }
+      }
+
+      // Xóa job
+      async function deleteJob(id) {
+        if (!confirm("Bạn có chắc muốn xóa job này?")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+            method: "DELETE",
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || "Lỗi khi xóa job");
+          }
+
+          showMessage("Đã xóa job thành công");
+          loadJobs();
+        } catch (error) {
+          console.error("Lỗi khi xóa job:", error);
+          showMessage(`Lỗi: ${error.message}`, "error");
+        }
+      }
+
+      // Xử lý submit form
+      document.getElementById("jobForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const emailToText = document.getElementById("emailTo").value;
+        const emailToArray = emailToText
+          .split(/[,\n]/)
+          .map((email) => email.trim())
+          .filter((email) => email.length > 0);
+
+        const jobData = {
+          name: document.getElementById("jobName").value,
+          chrome_profile: document.getElementById("chromeProfile").value || null,
+          email_from: document.getElementById("emailFrom").value,
+          email_to: emailToArray,
+          email_subject: document.getElementById("emailSubject").value,
+          email_body: document.getElementById("emailBody").value,
+          schedule: document.getElementById("schedule").value,
+          schedule_time: document.getElementById("scheduleTime").value + ":00",
+          notes: document.getElementById("notes").value || null,
+          status: document.getElementById("status").value,
+        };
+
+        try {
+          let response;
+          if (editingJobId) {
+            // Cập nhật
+            response = await fetch(`${API_BASE_URL}/jobs/${editingJobId}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(jobData),
+            });
+          } else {
+            // Tạo mới
+            response = await fetch(`${API_BASE_URL}/jobs`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(jobData),
+            });
+          }
+
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || "Lỗi khi lưu job");
+          }
+
+          showMessage(
+            editingJobId ? "Đã cập nhật job thành công" : "Đã tạo job thành công"
+          );
+          closeModal();
+          loadJobs();
+        } catch (error) {
+          console.error("Lỗi khi lưu job:", error);
+          showMessage(`Lỗi: ${error.message}`, "error");
+        }
+      });
+
+      // Đóng modal khi click bên ngoài
+      document.getElementById("jobModal").addEventListener("click", (e) => {
+        if (e.target.id === "jobModal") {
+          closeModal();
+        }
+      });
+
+      // Tải jobs khi trang được tải
+      loadJobs();
+    </script>
+  </body>
+</html>
+
