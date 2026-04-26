@@ -29,18 +29,19 @@ if (!envPath) {
   console.error(`   Thư mục hiện tại (__dirname): ${__dirname}`);
   console.error(`   Working directory (cwd): ${process.cwd()}`);
 
-  // Thử tạo file .env tự động
+  // Thử tạo file .env tự động (không có password mặc định vì lý do bảo mật)
   const defaultEnvPath = path.resolve(__dirname, ".env");
   try {
     const defaultContent = `DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=mail_manager
 DB_USER=postgres
-DB_PASSWORD=Vboyht@02
+DB_PASSWORD=your_password_here
 PORT=3000
 `;
     fs.writeFileSync(defaultEnvPath, defaultContent, "utf8");
     console.log(`✅ Đã tự động tạo file .env tại: ${defaultEnvPath}`);
+    console.log(`⚠️ Vui lòng cập nhật DB_PASSWORD trong file .env`);
     envPath = defaultEnvPath;
   } catch (error) {
     console.error(`❌ Không thể tạo file .env tự động:`, error.message);
@@ -120,13 +121,13 @@ if (!dbConfig.password || dbConfig.password.trim() === "") {
   console.error("DB_PORT=5432");
   console.error("DB_NAME=mail_manager");
   console.error("DB_USER=postgres");
-  console.error("DB_PASSWORD=Vboyht@02");
+  console.error("DB_PASSWORD=your_password_here");
   console.error("PORT=3000");
   console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.error(
     "\nLưu ý: Nếu password có ký tự đặc biệt, có thể cần đặt trong dấu ngoặc kép:"
   );
-  console.error('DB_PASSWORD="Vboyht@02"');
+  console.error('DB_PASSWORD="your_password_here"');
   throw new Error("DB_PASSWORD không được định nghĩa");
 }
 

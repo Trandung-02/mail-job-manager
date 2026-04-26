@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
@@ -92,6 +92,48 @@
       .btn-small {
         padding: 6px 12px;
         font-size: 14px;
+      }
+
+      .recipients-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .recipient-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .recipient-row input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .recipient-row input[placeholder="Email"] {
+        min-width: 0;
+      }
+
+      .recipient-row input[placeholder="Tên Page"] {
+        min-width: 0;
+      }
+
+      .recipient-row .btn-remove-row {
+        padding: 8px 12px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .recipient-row .btn-remove-row:hover {
+        background: #dc2626;
       }
 
       .jobs-grid {
@@ -375,11 +417,11 @@
           </div>
 
           <div class="form-group">
-            <label>Danh Sách Email Nhận *</label>
+            <label>Danh Sách Email Nhận * (mỗi dòng: Email + dấu cách + Tên Page)</label>
             <textarea
-              id="emailTo"
+              id="emailRecipientsText"
               required
-              placeholder="Nhập email, cách nhau bởi dấu phẩy hoặc xuống dòng&#10;VD: abc@gmail.com, xyz@gmail.com"
+              placeholder="Mỗi dòng: email TênPage&#10;VD: abc@gmail.com Cửa hàng A"
             ></textarea>
           </div>
 
@@ -389,7 +431,7 @@
               type="text"
               id="emailSubject"
               required
-              placeholder="VD: Thông báo khuyến mãi"
+              placeholder="VD: Thông báo khuyến mãi. Dùng [Name] để chèn Tên Page"
             />
           </div>
 
@@ -398,7 +440,7 @@
             <textarea
               id="emailBody"
               required
-              placeholder="Nhập nội dung email..."
+              placeholder="Nhập nội dung email... Dùng [Name] để chèn Tên Page tương ứng mỗi người nhận"
             ></textarea>
           </div>
 
@@ -448,7 +490,7 @@
           }
         } catch (e) {
           console.warn(
-            "LocalStorage không khả dụng. Dữ liệu sẽ không được lưu."
+            "LocalStorage không khả dụng. Dữ liệu sẽ không được lưu.",
           );
         }
         renderJobs();
@@ -504,10 +546,10 @@
                       job.emailFrom
                     }</div>
                     <div class="job-info"><strong>Số người nhận:</strong> ${
-                      job.emailTo.length
+                      (job.emailRecipients && job.emailRecipients.length) || (job.emailTo && job.emailTo.length) || 0
                     }</div>
                     <div class="job-info"><strong>Lịch:</strong> ${getScheduleText(
-                      job.schedule
+                      job.schedule,
                     )}</div>
                     <div class="job-info"><strong>Thời gian:</strong> ${
                       job.scheduleTime
@@ -515,7 +557,7 @@
                     ${
                       job.lastSent
                         ? `<div class="job-info"><strong>Gửi lần cuối:</strong> ${new Date(
-                            job.lastSent
+                            job.lastSent,
                           ).toLocaleString("vi-VN")}</div>`
                         : ""
                     }
@@ -539,7 +581,7 @@
                         }')">🗑 Xóa</button>
                     </div>
                 </div>
-            `
+            `,
           )
           .join("");
       }
@@ -558,11 +600,56 @@
       function updateStats() {
         document.getElementById("totalJobs").textContent = jobs.length;
         document.getElementById("activeJobs").textContent = jobs.filter(
-          (j) => j.status === "active"
+          (j) => j.status === "active",
         ).length;
         document.getElementById("pausedJobs").textContent = jobs.filter(
-          (j) => j.status === "paused"
+          (j) => j.status === "paused",
         ).length;
+      }
+
+      // Parse textarea: mỗi dòng "email Tên Page"
+      function parseRecipientsFromText(text) {
+        const recipients = [];
+        if (!text) return recipients;
+        const lines = text.split(/\r?\n/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const firstSpace = trimmed.indexOf(" ");
+          let email;
+          let pageName;
+          if (firstSpace === -1) {
+            email = trimmed;
+            pageName = "";
+          } else {
+            email = trimmed.slice(0, firstSpace).trim();
+            pageName = trimmed.slice(firstSpace + 1).trim();
+          }
+          if (email) {
+            recipients.push({ email, pageName });
+          }
+        }
+        return recipients;
+      }
+
+      function fillRecipientsText(recipients) {
+        const textarea = document.getElementById("emailRecipientsText");
+        if (!textarea) return;
+        if (!recipients || recipients.length === 0) {
+          textarea.value = "";
+          return;
+        }
+        const lines = recipients.map((r) => {
+          const email = r.email || r;
+          const pageName =
+            typeof r === "object" && r.pageName !== undefined
+              ? r.pageName
+              : r.page_name != null
+                ? r.page_name
+                : "";
+          return (email || "") + (pageName ? " " + pageName : "");
+        });
+        textarea.value = lines.join("\n");
       }
 
       // Open add modal
@@ -570,6 +657,8 @@
         editingJobId = null;
         document.getElementById("modalTitle").textContent = "Thêm Job Mới";
         document.getElementById("jobForm").reset();
+        const textarea = document.getElementById("emailRecipientsText");
+        if (textarea) textarea.value = "";
         document.getElementById("jobModal").classList.add("active");
       }
 
@@ -589,14 +678,25 @@
         document.getElementById("jobName").value = job.name;
         document.getElementById("chromeProfile").value = job.chromeProfile;
         document.getElementById("emailFrom").value = job.emailFrom;
-        document.getElementById("emailTo").value = job.emailTo.join(", ");
+        const recipients =
+          job.emailRecipients && job.emailRecipients.length > 0
+            ? job.emailRecipients.map((r) => ({
+                email: r.email,
+                pageName:
+                  r.page_name != null
+                    ? r.page_name
+                    : r.pageName || "",
+              }))
+            : job.emailTo && job.emailTo.length
+              ? job.emailTo.map((e) => ({ email: e, pageName: "" }))
+              : [];
+        fillRecipientsText(recipients);
         document.getElementById("emailSubject").value = job.emailSubject;
         document.getElementById("emailBody").value = job.emailBody;
         document.getElementById("schedule").value = job.schedule;
         document.getElementById("scheduleTime").value = job.scheduleTime;
         document.getElementById("notes").value = job.notes || "";
 
-        // Set profile
         const profileSelect = document.getElementById("chromeProfile");
         const profileCustom = document.getElementById("chromeProfileCustom");
         profileSelect.value = job.chromeProfile;
@@ -649,7 +749,7 @@
         } catch (error) {
           console.error("Lỗi khi tải profiles:", error);
           alert(
-            "Không thể tải Chrome profiles. Đảm bảo server Node.js đang chạy (npm start)"
+            "Không thể tải Chrome profiles. Đảm bảo server Node.js đang chạy (npm start)",
           );
         }
       }
@@ -659,9 +759,10 @@
         const job = jobs.find((j) => j.id === id);
         if (!job) return;
 
+        const recipientCount = (job.emailRecipients && job.emailRecipients.length) || (job.emailTo && job.emailTo.length) || 0;
         if (
           !confirm(
-            `Bạn có chắc muốn chạy job "${job.name}"?\n\nSẽ gửi ${job.emailTo.length} email từ ${job.emailFrom}`
+            `Bạn có chắc muốn chạy job "${job.name}"?\n\nSẽ gửi ${recipientCount} email từ ${job.emailFrom}`,
           )
         ) {
           return;
@@ -683,10 +784,11 @@
             job.lastResult = result;
             saveJobs();
             renderJobs();
+            const totalRecipients = (job.emailRecipients && job.emailRecipients.length) || (job.emailTo && job.emailTo.length) || 0;
             alert(
               `✅ Job "${job.name}" đã được thực thi thành công!\n\nĐã gửi: ${
                 result.sent || 0
-              }/${job.emailTo.length} email`
+              }/${totalRecipients} email`,
             );
           } else {
             alert(`❌ Lỗi: ${result.error || "Không thể thực thi job"}`);
@@ -694,7 +796,7 @@
         } catch (error) {
           console.error("Lỗi khi chạy job:", error);
           alert(
-            "❌ Không thể kết nối đến server. Đảm bảo server Node.js đang chạy (npm start)"
+            "❌ Không thể kết nối đến server. Đảm bảo server Node.js đang chạy (npm start)",
           );
         }
       }
@@ -705,17 +807,23 @@
         .addEventListener("submit", function (e) {
           e.preventDefault();
 
-          const emailToText = document.getElementById("emailTo").value;
-          const emailToArray = emailToText
-            .split(/[,\n]/)
-            .map((email) => email.trim())
-            .filter((email) => email.length > 0);
+          const recipientsText =
+            document.getElementById("emailRecipientsText")?.value || "";
+          const recipients = parseRecipientsFromText(recipientsText);
+          if (recipients.length === 0) {
+            alert("Vui lòng thêm ít nhất một email nhận.");
+            return;
+          }
 
           const jobData = {
             name: document.getElementById("jobName").value,
             chromeProfile: document.getElementById("chromeProfile").value,
             emailFrom: document.getElementById("emailFrom").value,
-            emailTo: emailToArray,
+            emailRecipients: recipients.map((r) => ({
+              email: r.email,
+              page_name: r.pageName,
+            })),
+            emailTo: recipients.map((r) => r.email),
             emailSubject: document.getElementById("emailSubject").value,
             emailBody: document.getElementById("emailBody").value,
             schedule: document.getElementById("schedule").value,
@@ -724,7 +832,6 @@
             status: "active",
           };
 
-          // Use custom profile if provided, otherwise use selected
           const profileSelect = document.getElementById("chromeProfile");
           const profileCustom = document.getElementById("chromeProfileCustom");
           if (profileCustom.value.trim()) {
@@ -734,13 +841,11 @@
           }
 
           if (editingJobId) {
-            // Update existing job
             const index = jobs.findIndex((j) => j.id === editingJobId);
             if (index !== -1) {
               jobs[index] = { ...jobs[index], ...jobData };
             }
           } else {
-            // Add new job
             jobData.id = "job_" + Date.now();
             jobData.createdAt = new Date().toISOString();
             jobs.push(jobData);
@@ -778,7 +883,7 @@
               const importedJobs = JSON.parse(event.target.result);
               if (
                 confirm(
-                  `Tìm thấy ${importedJobs.length} jobs. Bạn muốn:\n- OK: Thay thế tất cả\n- Cancel: Hủy`
+                  `Tìm thấy ${importedJobs.length} jobs. Bạn muốn:\n- OK: Thay thế tất cả\n- Cancel: Hủy`,
                 )
               ) {
                 jobs = importedJobs;

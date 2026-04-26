@@ -141,10 +141,15 @@ const ApiService = {
       const apiJobData = {
         name: jobData.name,
         chrome_profile: jobData.chromeProfile || null,
+        display_name: jobData.displayName || null, // Tên hiển thị (có thể null)
         email_from: jobData.emailFrom,
         email_to: Array.isArray(jobData.emailTo)
           ? jobData.emailTo
           : [jobData.emailTo],
+        email_recipients:
+          jobData.emailRecipients && jobData.emailRecipients.length > 0
+            ? jobData.emailRecipients
+            : undefined,
         email_subject: jobData.emailSubject,
         email_body: jobData.emailBody,
         schedule: jobData.schedule || "manual",
@@ -190,12 +195,20 @@ const ApiService = {
       if (jobData.name !== undefined) apiJobData.name = jobData.name;
       if (jobData.chromeProfile !== undefined)
         apiJobData.chrome_profile = jobData.chromeProfile || null;
+      if (jobData.displayName !== undefined)
+        apiJobData.display_name =
+          jobData.displayName && jobData.displayName.trim() !== ""
+            ? jobData.displayName.trim()
+            : null;
       if (jobData.emailFrom !== undefined)
         apiJobData.email_from = jobData.emailFrom;
       if (jobData.emailTo !== undefined) {
         apiJobData.email_to = Array.isArray(jobData.emailTo)
           ? jobData.emailTo
           : [jobData.emailTo];
+      }
+      if (jobData.emailRecipients !== undefined) {
+        apiJobData.email_recipients = jobData.emailRecipients;
       }
       if (jobData.emailSubject !== undefined)
         apiJobData.email_subject = jobData.emailSubject;
@@ -270,7 +283,7 @@ const ApiService = {
   async getLastRunLog(id) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/jobs/${id}/last-run-log`
+        `${API_BASE_URL}/api/jobs/${id}/last-run-log`,
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -341,14 +354,23 @@ const ApiService = {
    * @returns {Object} Job in app format
    */
   convertJobFromAPI(apiJob) {
+    const emailTo = Array.isArray(apiJob.email_to)
+      ? apiJob.email_to
+      : JSON.parse(apiJob.email_to || "[]");
+    const emailRecipients =
+      Array.isArray(apiJob.email_recipients) &&
+      apiJob.email_recipients.length > 0
+        ? apiJob.email_recipients
+        : emailTo.map((email) => ({ email, page_name: null }));
+
     return {
       id: apiJob.id,
       name: apiJob.name,
       chromeProfile: apiJob.chrome_profile,
+      displayName: apiJob.display_name || null, // Tên hiển thị từ database
       emailFrom: apiJob.email_from,
-      emailTo: Array.isArray(apiJob.email_to)
-        ? apiJob.email_to
-        : JSON.parse(apiJob.email_to || "[]"),
+      emailTo,
+      emailRecipients,
       emailSubject: apiJob.email_subject,
       emailBody: apiJob.email_body,
       schedule: apiJob.schedule,
@@ -403,6 +425,45 @@ const Utils = {
       .split(/[,\n]/)
       .map((email) => email.trim())
       .filter((email) => email.length > 0 && this.isValidEmail(email));
+  },
+
+  /**
+   * Parse recipients from text: mỗi dòng "email TênPage"
+   * @param {string} text
+   * @returns {Array<{email: string, pageName: string}>}
+   */
+  parseEmailRecipients(text) {
+    if (!text) return [];
+    const lines = text.split(/\r?\n/);
+    const recipients = [];
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const firstSpace = line.indexOf(" ");
+      let email;
+      let pageName;
+
+      if (firstSpace === -1) {
+        email = line;
+        pageName = "";
+      } else {
+        email = line.slice(0, firstSpace).trim();
+        pageName = line.slice(firstSpace + 1).trim();
+      }
+
+      if (!email || !this.isValidEmail(email)) {
+        continue;
+      }
+
+      recipients.push({
+        email,
+        pageName: pageName || "",
+      });
+    }
+
+    return recipients;
   },
 
   /**
@@ -465,7 +526,7 @@ const JobManager = {
       console.error("Lỗi khi tải jobs:", error);
       Utils.showNotification(
         `❌ Không thể tải jobs từ database. ${error.message}\n\nĐảm bảo server đang chạy và database đã được kết nối.`,
-        "error"
+        "error",
       );
       // Fallback: show empty state
       AppState.jobs = [];
@@ -517,7 +578,7 @@ const JobManager = {
       console.error("Lỗi khi cập nhật job:", error);
       Utils.showNotification(
         `❌ Không thể cập nhật job: ${error.message}`,
-        "error"
+        "error",
       );
       throw error;
     } finally {
@@ -582,7 +643,7 @@ const JobManager = {
       if (!logData.has_run) {
         Utils.showNotification(
           `Job "${job.name}" chưa được chạy lần nào.`,
-          "info"
+          "info",
         );
         return;
       }
@@ -618,14 +679,14 @@ const JobManager = {
         "❌ App Password không hợp lệ (phải có ít nhất 16 ký tự). Vui lòng chỉnh sửa job.\n\n" +
           "Tạo App Password tại: https://myaccount.google.com/apppasswords\n" +
           "(Cần bật 2-Step Verification trước)",
-        "error"
+        "error",
       );
       return;
     }
 
     if (
       !Utils.confirm(
-        `Bạn có chắc muốn chạy job "${job.name}"?\n\nSẽ gửi ${job.emailTo.length} email từ ${job.emailFrom}`
+        `Bạn có chắc muốn chạy job "${job.name}"?\n\nSẽ gửi ${job.emailTo.length} email từ ${job.emailFrom}`,
       )
     ) {
       return;
@@ -659,12 +720,12 @@ const JobManager = {
           `✅ Job "${job.name}" đã được thực thi thành công!\n\nĐã gửi: ${
             result.sent || 0
           }/${job.emailTo.length} email`,
-          "success"
+          "success",
         );
       } else {
         Utils.showNotification(
           `❌ Lỗi: ${result.error || "Không thể thực thi job"}`,
-          "error"
+          "error",
         );
       }
     } catch (error) {
@@ -691,7 +752,7 @@ const JobManager = {
         const profilesList = error.availableProfiles
           .map(
             (p) =>
-              `  • ${p.name} (${p.directory})${p.email ? ` - ${p.email}` : ""}`
+              `  • ${p.name} (${p.directory})${p.email ? ` - ${p.email}` : ""}`,
           )
           .join("\n");
         errorMessage += `\n\n📋 Các profile có sẵn:\n${profilesList}\n\n💡 Vui lòng chỉnh sửa job và chọn lại profile đúng.`;
@@ -711,7 +772,7 @@ const JobManager = {
    */
   updateRunButton(id, isLoading) {
     const button = document.querySelector(
-      `[data-job-id="${id}"][data-action="run"]`
+      `[data-job-id="${id}"][data-action="run"]`,
     );
     if (button) {
       button.disabled = isLoading;
@@ -756,7 +817,7 @@ const JobManager = {
     const statusText = job.status === "active" ? "✓ Hoạt động" : "⏸ Tạm dừng";
     const lastSentHtml = job.lastSent
       ? `<div class="job-card__info"><strong>Gửi lần cuối:</strong> ${Utils.formatDate(
-          job.lastSent
+          job.lastSent,
         )}</div>`
       : "";
 
@@ -768,7 +829,7 @@ const JobManager = {
         </div>
         <div class="job-card__info">
           <strong>Profile:</strong> ${Utils.escapeHtml(
-            job.chromeProfile || "N/A"
+            job.chromeProfile || "N/A",
           )}
         </div>
         <div class="job-card__info">
@@ -798,8 +859,8 @@ const JobManager = {
           <button class="btn btn--warning btn--small" data-job-id="${
             job.id
           }" data-action="toggle" onclick="JobManager.toggleJobStatus(${
-      job.id
-    })">
+            job.id
+          })">
             ${job.status === "active" ? "⏸ Dừng" : "▶ Kích hoạt"}
           </button>
           <button class="btn btn--primary btn--small" data-job-id="${
@@ -948,7 +1009,7 @@ const ModalManager = {
         console.error("Lỗi khi tải job:", error);
         Utils.showNotification(
           `❌ Không thể tải job: ${error.message}`,
-          "error"
+          "error",
         );
         return;
       }
@@ -995,11 +1056,20 @@ const ModalManager = {
    * @param {Object} job - Job object
    */
   populateForm(job) {
+    const emailToValue =
+      job.emailRecipients && job.emailRecipients.length > 0
+        ? job.emailRecipients
+            .map((r) => `${r.email}${r.page_name ? " " + r.page_name : ""}`)
+            .join("\n")
+        : job.emailTo && job.emailTo.length
+          ? job.emailTo.join(", ")
+          : "";
     const fields = {
       jobName: job.name,
       emailFrom: job.emailFrom,
+      displayName: job.displayName || "", // Điền tên hiển thị nếu có
       appPassword: "", // Không hiển thị password cũ vì lý do bảo mật
-      emailTo: job.emailTo.join(", "),
+      emailTo: emailToValue,
       emailSubject: job.emailSubject,
       emailBody: job.emailBody,
       schedule: job.schedule,
@@ -1180,7 +1250,7 @@ const ModalManager = {
     // Khi chỉnh sửa, nếu appPassword trống nhưng job đã có appPassword, giữ lại appPassword cũ
     if (AppState.editingJobId) {
       const existingJob = AppState.jobs.find(
-        (j) => j.id === AppState.editingJobId
+        (j) => j.id === AppState.editingJobId,
       );
       if (existingJob) {
         // Giữ lại appPassword cũ nếu không nhập mới
@@ -1234,33 +1304,53 @@ const ModalManager = {
 
     // Lấy email từ profile nếu đã chọn, nếu không thì lấy từ input
     let emailFrom = document.getElementById("emailFrom")?.value || "";
-    let displayName = ""; // Tên hiển thị từ profile
+    let displayName = ""; // Tên hiển thị
 
-    // Nếu chọn profile từ dropdown và có email, ưu tiên dùng email từ profile
-    if (!profileCustom?.value.trim() && profileSelect?.value) {
-      const selectedOption = profileSelect.options[profileSelect.selectedIndex];
-      const profileEmail = selectedOption?.dataset.email || "";
-      const profileName = selectedOption?.dataset.name || "";
-      if (profileEmail) {
-        emailFrom = profileEmail;
-      }
-      if (profileName && profileName.trim() !== "") {
-        displayName = profileName.trim();
+    // Ưu tiên 1: Lấy từ input "Tên hiển thị" nếu người dùng nhập tay
+    const displayNameInput =
+      document.getElementById("displayName")?.value || "";
+    if (displayNameInput && displayNameInput.trim() !== "") {
+      displayName = displayNameInput.trim();
+    } else {
+      // Ưu tiên 2: Nếu không có input, lấy từ profile nếu đã chọn
+      if (!profileCustom?.value.trim() && profileSelect?.value) {
+        const selectedOption =
+          profileSelect.options[profileSelect.selectedIndex];
+        const profileEmail = selectedOption?.dataset.email || "";
+        const profileName = selectedOption?.dataset.name || "";
+        if (profileEmail) {
+          emailFrom = profileEmail;
+        }
+        if (profileName && profileName.trim() !== "") {
+          displayName = profileName.trim();
+        }
       }
     }
 
-    // Nếu không có displayName từ profile, để rỗng (server sẽ tự động lấy từ profile hoặc dùng email)
+    // Nếu vẫn không có displayName, để rỗng (server sẽ tự động lấy từ profile hoặc dùng email)
 
     const emailToText = document.getElementById("emailTo")?.value || "";
-    const emailToArray = Utils.parseEmailList(emailToText);
+    // Hỗ trợ cú pháp: mỗi dòng "email TênPage"
+    const recipients = Utils.parseEmailRecipients(emailToText);
+    const emailToArray =
+      recipients.length > 0
+        ? recipients.map((r) => r.email)
+        : Utils.parseEmailList(emailToText);
 
     return {
       name: document.getElementById("jobName")?.value || "",
       chromeProfile,
       emailFrom,
-      displayName: displayName || "", // Lưu rỗng nếu không có, server sẽ tự động lấy từ profile
+      displayName: displayName || "", // Ưu tiên từ input, sau đó từ profile, cuối cùng để rỗng
       appPassword: document.getElementById("appPassword")?.value || "",
       emailTo: emailToArray,
+      emailRecipients:
+        recipients.length > 0
+          ? recipients.map((r) => ({
+              email: r.email,
+              page_name: r.pageName,
+            }))
+          : [],
       emailSubject: document.getElementById("emailSubject")?.value || "",
       emailBody: document.getElementById("emailBody")?.value || "",
       schedule: document.getElementById("schedule")?.value || "manual",
@@ -1295,7 +1385,7 @@ const ModalManager = {
       // Nếu đang chỉnh sửa, kiểm tra xem job cũ có appPassword không
       if (AppState.editingJobId) {
         const existingJob = AppState.jobs.find(
-          (j) => j.id === AppState.editingJobId
+          (j) => j.id === AppState.editingJobId,
         );
         if (
           !existingJob ||
@@ -1304,7 +1394,7 @@ const ModalManager = {
         ) {
           Utils.showNotification(
             "Vui lòng nhập Gmail App Password (16 ký tự). Tạo tại: https://myaccount.google.com/apppasswords",
-            "error"
+            "error",
           );
           return false;
         }
@@ -1313,7 +1403,7 @@ const ModalManager = {
         // Tạo mới: bắt buộc phải có appPassword
         Utils.showNotification(
           "Vui lòng nhập Gmail App Password (16 ký tự). Tạo tại: https://myaccount.google.com/apppasswords",
-          "error"
+          "error",
         );
         return false;
       }
@@ -1357,12 +1447,12 @@ const ProfileManager = {
       this.populateProfileSelect(profiles);
       Utils.showNotification(
         `Đã tải ${profiles.length} Chrome profiles!`,
-        "success"
+        "success",
       );
     } catch (error) {
       Utils.showNotification(
         "Không thể tải Chrome profiles. Đảm bảo server Node.js đang chạy (npm start)",
-        "error"
+        "error",
       );
     } finally {
       if (button) {
@@ -1548,7 +1638,7 @@ const ProfileManager = {
       const newProfileCustomInput = profileCustomInput.cloneNode(true);
       profileCustomInput.parentNode.replaceChild(
         newProfileCustomInput,
-        profileCustomInput
+        profileCustomInput,
       );
 
       newProfileCustomInput.addEventListener("input", () => {
@@ -1623,7 +1713,7 @@ const DataManager = {
 
           if (
             !Utils.confirm(
-              `Tìm thấy ${importedJobs.length} jobs. Bạn muốn:\n- OK: Import tất cả vào database\n- Cancel: Hủy`
+              `Tìm thấy ${importedJobs.length} jobs. Bạn muốn:\n- OK: Import tất cả vào database\n- Cancel: Hủy`,
             )
           ) {
             return;
@@ -1652,7 +1742,7 @@ const DataManager = {
             `✅ Đã import ${successCount} jobs thành công${
               errorCount > 0 ? `, ${errorCount} jobs lỗi` : ""
             }!`,
-            successCount > 0 ? "success" : "error"
+            successCount > 0 ? "success" : "error",
           );
         } catch (error) {
           Utils.showNotification(`Lỗi: ${error.message}`, "error");
@@ -1804,21 +1894,21 @@ const LogModalManager = {
                 <div class="log-failed-item__number">${index + 1}.</div>
                 <div class="log-failed-item__content">
                   <div class="log-failed-item__email"><strong>Email:</strong> ${Utils.escapeHtml(
-                    item.email || "N/A"
+                    item.email || "N/A",
                   )}</div>
                   <div class="log-failed-item__error"><strong>Lỗi:</strong> ${Utils.escapeHtml(
-                    item.error || "Không có thông tin"
+                    item.error || "Không có thông tin",
                   )}</div>
                   ${
                     item.method
                       ? `<div class="log-failed-item__method"><strong>Phương thức:</strong> ${Utils.escapeHtml(
-                          item.method
+                          item.method,
                         )}</div>`
                       : ""
                   }
                 </div>
               </div>
-            `
+            `,
               )
               .join("")}
           </div>
@@ -1853,20 +1943,20 @@ const LogModalManager = {
                   ${
                     error.email
                       ? `<div class="log-error-item__email"><strong>Email:</strong> ${Utils.escapeHtml(
-                          error.email
+                          error.email,
                         )}</div>`
                       : ""
                   }
                   ${
                     error.error
                       ? `<div class="log-error-item__error"><strong>Lỗi:</strong> ${Utils.escapeHtml(
-                          error.error
+                          error.error,
                         )}</div>`
                       : ""
                   }
                 </div>
               </div>
-            `
+            `,
               )
               .join("")}
           </div>

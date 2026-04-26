@@ -129,17 +129,44 @@ Trước khi sử dụng, bạn cần tạo Gmail App Password:
 
 ```
 mail-job-manager/
-├── index.html              # Giao diện web chính (Semantic HTML5)
-├── assets/
+├── src/                    # Source code (Modular Architecture)
+│   ├── config/             # Configuration
+│   │   ├── index.js        # Main config
+│   │   └── database.js     # Database config
+│   ├── controllers/        # Business logic
+│   │   └── jobController.js
+│   ├── services/           # Service layer
+│   │   └── databaseService.js  # Database operations (optimized)
+│   ├── routes/             # API routes
+│   │   └── jobRoutes.js
+│   ├── middlewares/        # Express middlewares
+│   │   ├── errorHandler.js
+│   │   ├── asyncHandler.js
+│   │   ├── validation.js
+│   │   └── cors.js
+│   └── utils/              # Utilities
+│       ├── logger.js       # Centralized logging
+│       ├── emailValidator.js
+│       └── fileUtils.js
+├── index.html              # Giao diện web chính
+├── assets/                 # Frontend assets
 │   ├── css/
-│   │   └── main.css        # Stylesheet chính (BEM, Design System)
+│   │   └── main.css
 │   └── js/
-│       └── app.js          # JavaScript chính (ES6 Modules)
-├── server.js               # Server Node.js với API (Clean Architecture)
+│       └── app.js
+├── server.js               # Server entry point (có thể migrate sang src/)
+├── database.js             # Database connection (legacy, có thể migrate)
+├── schema.sql              # Database schema
 ├── package.json            # Dependencies
-├── .gitignore              # Git ignore rules
+├── OPTIMIZATION_SUMMARY.md # Báo cáo tối ưu
+├── MIGRATION_GUIDE.md      # Hướng dẫn migration
 └── README.md               # Tài liệu này
 ```
+
+### 📚 Tài Liệu
+- `OPTIMIZATION_SUMMARY.md`: Báo cáo chi tiết các cải tiến đã thực hiện
+- `MIGRATION_GUIDE.md`: Hướng dẫn migration từ code cũ sang architecture mới
+- `EXAMPLE_INTEGRATION.js`: Ví dụ cách tích hợp các module mới
 
 ## 🎨 Design System
 
